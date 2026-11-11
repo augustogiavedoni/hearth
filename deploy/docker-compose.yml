@@ -1,0 +1,22 @@
+# Skeleton only (milestone M6). Run from the repo root:
+#   docker compose -f deploy/docker-compose.yml up --build
+services:
+  hearth:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ../data:/app/data
+    restart: unless-stopped
+    # No `ports:` on purpose. Remote access goes through Tailscale on the host.

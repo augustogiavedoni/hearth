@@ -1,0 +1,29 @@
+# --- Secrets: never commit ---
+.env
+.env.*
+!.env.example
+credentials*.json
+token*.json
+*.pem
+*.key
+
+# --- Runtime data (mail caches, drafts, state) ---
+data/
+
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+.DS_Store
