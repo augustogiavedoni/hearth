@@ -9,4 +9,46 @@ Must NOT:
     - Hold or load credentials.
 """
 
-# TODO(augusto): define the provider interface.
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Literal, Protocol
+
+
+@dataclass(frozen=True)
+class Message:
+    role: Literal["user", "assistant", "system"]
+    content: str
+
+
+@dataclass(frozen=True)
+class Response:
+    content: str
+    finish_reason: Literal["stop", "length", "other"]
+
+
+class Provider(Protocol):
+    async def complete(self, messages: Sequence[Message]) -> Response: ...
+
+
+class ProviderError(Exception):
+    """Base class for provider errors."""
+
+
+class ProviderTimeoutError(ProviderError):
+    """The request timed out."""
+
+
+class ProviderAuthenticationError(ProviderError):
+    """The request is not authenticated."""
+
+
+class ProviderRateLimitError(ProviderError):
+    """The request is limited by the provider."""
+
+
+class ProviderInvalidRequestError(ProviderError):
+    """The request is malformed or the provider does not support the request."""
+
+
+class ProviderUnavailableError(ProviderError):
+    """Either the provider is down or the network is unreachable."""
