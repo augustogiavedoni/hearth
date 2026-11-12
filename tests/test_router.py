@@ -5,6 +5,7 @@ import pytest
 
 from fakes import FakeProvider, FakeSleep
 from hearth.providers.base import (
+    AllProvidersFailedError,
     Message,
     ProviderAuthenticationError,
     ProviderError,
@@ -285,5 +286,27 @@ async def test_router_falls_back_without_retries() -> None:
 
     assert result is expected
     assert len(primary.calls) == 1
+    assert secondary.calls == [[message]]
+    assert sleep.delays == []
+
+
+async def test_router_raises_on_all_providers_failed() -> None:
+    primary_error = ProviderRateLimitError()
+    secondary_error = ProviderRateLimitError()
+    primary = FakeProvider([primary_error])
+    secondary = FakeProvider([secondary_error])
+    sleep = FakeSleep()
+    router = Router(
+        providers=[primary, secondary], retry_config=RetryConfig(max_retries=3), sleep=sleep
+    )
+    message = Message(role="user", content="Hi there!")
+
+    with pytest.raises(AllProvidersFailedError) as exception_info:
+        await router.complete([message])
+
+    assert len(exception_info.value.errors) == 2
+    assert exception_info.value.errors[0] is primary_error
+    assert exception_info.value.errors[1] is secondary_error
+    assert primary.calls == [[message]]
     assert secondary.calls == [[message]]
     assert sleep.delays == []

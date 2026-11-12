@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from hearth.providers.base import (
+    AllProvidersFailedError,
     Message,
     Provider,
     ProviderAuthenticationError,
@@ -104,33 +105,34 @@ class Router:
         self._sleep = sleep
 
     async def complete(self, messages: Sequence[Message]) -> Response:
-        last_exception: Exception | None = None
+        max_attempts = self._retry_config.max_retries + 1
+        exceptions: list[Exception] = []
 
         for provider in self._providers:
             attempt = 1
-            max_attempts = self._retry_config.max_retries + 1
 
             while attempt <= max_attempts:
                 try:
                     return await provider.complete(messages)
                 except Exception as exception:
-                    last_exception = exception
                     action = action_for(exception)
 
                     match action:
                         case ProviderAction.FALLBACK:
+                            exceptions.append(exception)
                             break
                         case ProviderAction.FAIL:
                             raise exception
                         case ProviderAction.RETRY_THEN_FALLBACK:
                             if attempt == max_attempts:
+                                exceptions.append(exception)
                                 break
 
                             await self._sleep(calculate_retry_delay(self._retry_config, attempt))
                             attempt += 1
 
-        if last_exception is not None:
-            raise last_exception
+        if exceptions:
+            raise AllProvidersFailedError(exceptions) from exceptions[-1]
         else:
             raise RuntimeError(
                 "Router has no providers; the constructor should have rejected this."
