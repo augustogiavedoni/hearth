@@ -55,19 +55,25 @@ class RetryConfig:
     base_delay: float = 1.0
     max_delay: float = 10.0
     factor: float = 2.0
+    max_retries: int = 3
 
     def __post_init__(self) -> None:
         if self.base_delay <= 0 or not math.isfinite(self.base_delay):
             raise ValueError(f"base_delay must be a finite positive number (got {self.base_delay})")
+
         if self.max_delay < self.base_delay or not math.isfinite(self.max_delay):
             raise ValueError(
                 "max_delay must be a finite positive number greater than "
                 f"or equal to base_delay (got {self.max_delay}, base_delay={self.base_delay})"
             )
+
         if self.factor < 1 or not math.isfinite(self.factor):
             raise ValueError(
                 f"factor must be a finite positive number at least 1 (got {self.factor})"
             )
+
+        if self.max_retries < 0:
+            raise ValueError(f"max_retries must be a non-negative integer (got {self.max_retries})")
 
 
 def calculate_retry_delay(config: RetryConfig, retry_attempt: int) -> float:
@@ -101,17 +107,27 @@ class Router:
         last_exception: Exception | None = None
 
         for provider in self._providers:
-            try:
-                return await provider.complete(messages)
-            except Exception as exception:
-                last_exception = exception
-                action = action_for(exception)
+            attempt = 1
+            max_attempts = self._retry_config.max_retries + 1
 
-                match action:
-                    case ProviderAction.FALLBACK:
-                        continue
-                    case ProviderAction.FAIL | ProviderAction.RETRY_THEN_FALLBACK:
-                        raise exception
+            while attempt <= max_attempts:
+                try:
+                    return await provider.complete(messages)
+                except Exception as exception:
+                    last_exception = exception
+                    action = action_for(exception)
+
+                    match action:
+                        case ProviderAction.FALLBACK:
+                            break
+                        case ProviderAction.FAIL:
+                            raise exception
+                        case ProviderAction.RETRY_THEN_FALLBACK:
+                            if attempt == max_attempts:
+                                break
+
+                            await self._sleep(calculate_retry_delay(self._retry_config, attempt))
+                            attempt += 1
 
         if last_exception is not None:
             raise last_exception

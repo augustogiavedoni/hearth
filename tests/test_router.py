@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Any
 
 import pytest
 
@@ -90,6 +91,7 @@ def test_retry_config_default_values() -> None:
         "base_delay": 1.0,
         "max_delay": 10.0,
         "factor": 2.0,
+        "max_retries": 3,
     }
 
 
@@ -97,13 +99,20 @@ def test_retry_config_default_values() -> None:
     "values",
     [
         pytest.param(
-            {"base_delay": 0.5, "max_delay": 0.5, "factor": 2.0},
+            {"base_delay": 0.5, "max_delay": 0.5, "factor": 2.0, "max_retries": 3},
             id="max_delay_equal_to_base_delay",
         ),
-        pytest.param({"base_delay": 1.0, "max_delay": 10.0, "factor": 1.0}, id="factor_one"),
+        pytest.param(
+            {"base_delay": 1.0, "max_delay": 10.0, "factor": 1.0, "max_retries": 3},
+            id="factor_one",
+        ),
+        pytest.param(
+            {"base_delay": 1.0, "max_delay": 10.0, "factor": 2.0, "max_retries": 0},
+            id="max_retries_zero",
+        ),
     ],
 )
-def test_retry_config_valid_values(values: dict[str, float]) -> None:
+def test_retry_config_valid_values(values: dict[str, Any]) -> None:
     config = RetryConfig(**values)
 
     assert dataclasses.asdict(config) == values
@@ -118,9 +127,10 @@ def test_retry_config_valid_values(values: dict[str, float]) -> None:
         ),
         pytest.param({"factor": 0.9}, "factor", id="factor_less_than_one"),
         pytest.param({"base_delay": float("nan")}, "base_delay", id="base_delay_nan"),
+        pytest.param({"max_retries": -1}, "max_retries", id="max_retries_negative"),
     ],
 )
-def test_retry_config_invalid_values(values: dict[str, float], wrong_attribute: str) -> None:
+def test_retry_config_invalid_values(values: dict[str, Any], wrong_attribute: str) -> None:
     with pytest.raises(ValueError, match=f"^{wrong_attribute}"):
         RetryConfig(**values)
 
@@ -177,3 +187,28 @@ async def test_router_raises_without_fallback_on_non_transient_error(
     assert primary.calls == [[message]]
     assert secondary.calls == []
     assert sleep.delays == []
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        pytest.param(ProviderTimeoutError(), id="timeout-error"),
+        pytest.param(ProviderUnavailableError(), id="unavailable-error"),
+    ],
+)
+async def test_router_falls_back_after_exhausting_retries(exception: ProviderError) -> None:
+    primary = FakeProvider([exception for _ in range(4)])
+    expected = Response(content="Hi! How can I help you?", finish_reason="stop")
+    secondary = FakeProvider([expected])
+    sleep = FakeSleep()
+    router = Router(
+        providers=[primary, secondary], retry_config=RetryConfig(max_retries=3), sleep=sleep
+    )
+    message = Message(role="user", content="Hi there!")
+
+    result = await router.complete([message])
+
+    assert result is expected
+    assert len(primary.calls) == 4
+    assert secondary.calls == [[message]]
+    assert sleep.delays == [1.0, 2.0, 4.0]
