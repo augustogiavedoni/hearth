@@ -7,7 +7,7 @@ threat model has been reviewed for it.
 - [ ] `uv run python -m hearth` (or similar) starts a REPL that sends user
       input to the configured OpenAI-compatible provider and prints replies.
 - [ ] Provider settings come from env; no secrets in code.
-- [ ] Router falls back to the secondary provider on HTTP 429 (proved by a
+- [x] Router falls back to the secondary provider on HTTP 429 (proved by a
       test with a fake provider).
 - [ ] Unit tests for the provider interface use fakes, no network.
 

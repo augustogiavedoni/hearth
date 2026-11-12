@@ -52,3 +52,14 @@ class ProviderInvalidRequestError(ProviderError):
 
 class ProviderUnavailableError(ProviderError):
     """Either the provider is down or the network is unreachable."""
+
+
+class AllProvidersFailedError(ProviderError):
+    """All providers failed to complete the request."""
+
+    def __init__(self, errors: Sequence[Exception]) -> None:
+        self.errors = tuple(errors)
+
+        super().__init__(
+            f"All providers failed: {', '.join(type(error).__name__ for error in errors)}"
+        )
