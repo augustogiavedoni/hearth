@@ -2,15 +2,28 @@ import dataclasses
 
 import pytest
 
+from fakes import FakeProvider, FakeSleep
 from hearth.providers.base import (
+    Message,
     ProviderAuthenticationError,
     ProviderError,
     ProviderInvalidRequestError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderUnavailableError,
+    Response,
 )
-from hearth.providers.router import ProviderAction, RetryConfig, action_for, calculate_retry_delay
+from hearth.providers.router import (
+    ProviderAction,
+    RetryConfig,
+    Router,
+    action_for,
+    calculate_retry_delay,
+)
+
+
+async def no_sleep(delay: float) -> None:
+    pass
 
 
 @pytest.mark.parametrize(
@@ -110,3 +123,31 @@ def test_retry_config_valid_values(values: dict[str, float]) -> None:
 def test_retry_config_invalid_values(values: dict[str, float], wrong_attribute: str) -> None:
     with pytest.raises(ValueError, match=f"^{wrong_attribute}"):
         RetryConfig(**values)
+
+
+async def test_router_returns_first_provider_response() -> None:
+    expected = Response(content="Hi! How can I help you?", finish_reason="stop")
+    provider = FakeProvider([expected])
+    router = Router(providers=[provider], retry_config=RetryConfig(), sleep=no_sleep)
+    message = Message(role="user", content="Hi there!")
+
+    result = await router.complete([message])
+
+    assert result is expected
+    assert provider.calls == [[message]]
+
+
+async def test_router_fallback_on_rate_limit_without_retry_or_sleep() -> None:
+    primary = FakeProvider([ProviderRateLimitError()])
+    expected = Response(content="Hi! How can I help you?", finish_reason="stop")
+    secondary = FakeProvider([expected])
+    sleep = FakeSleep()
+    router = Router(providers=[primary, secondary], retry_config=RetryConfig(), sleep=sleep)
+    message = Message(role="user", content="Hi there!")
+
+    result = await router.complete([message])
+
+    assert result is expected
+    assert primary.calls == [[message]]
+    assert secondary.calls == [[message]]
+    assert sleep.delays == []

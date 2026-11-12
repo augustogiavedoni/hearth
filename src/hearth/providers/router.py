@@ -12,15 +12,19 @@ Must NOT:
 """
 
 import math
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 
 from hearth.providers.base import (
+    Message,
+    Provider,
     ProviderAuthenticationError,
     ProviderInvalidRequestError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderUnavailableError,
+    Response,
 )
 
 # TODO(augusto): implement routing and fallback on 429
@@ -77,3 +81,41 @@ def calculate_retry_delay(config: RetryConfig, retry_attempt: int) -> float:
         delay = config.max_delay
 
     return min(delay, config.max_delay)
+
+
+class Router:
+    def __init__(
+        self,
+        providers: Sequence[Provider],
+        retry_config: RetryConfig,
+        sleep: Callable[[float], Awaitable[None]],
+    ) -> None:
+        if not providers:
+            raise ValueError("providers cannot be empty")
+
+        self._providers = tuple(providers)
+        self._retry_config = retry_config
+        self._sleep = sleep
+
+    async def complete(self, messages: Sequence[Message]) -> Response:
+        last_exception: Exception | None = None
+
+        for provider in self._providers:
+            try:
+                return await provider.complete(messages)
+            except Exception as exception:
+                last_exception = exception
+                action = action_for(exception)
+
+                match action:
+                    case ProviderAction.FALLBACK:
+                        continue
+                    case ProviderAction.FAIL | ProviderAction.RETRY_THEN_FALLBACK:
+                        raise exception
+
+        if last_exception is not None:
+            raise last_exception
+        else:
+            raise RuntimeError(
+                "Router has no providers; the constructor should have rejected this."
+            )

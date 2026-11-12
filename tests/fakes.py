@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 
 from hearth.providers.base import Message, Provider, ProviderError, Response
 
@@ -22,4 +22,15 @@ class FakeProvider(Provider):
         return response
 
 
-_: Provider = FakeProvider([])
+_provider_check: Provider = FakeProvider([])
+
+
+class FakeSleep:
+    def __init__(self) -> None:
+        self.delays: list[float] = []
+
+    async def __call__(self, seconds: float) -> None:
+        self.delays.append(seconds)
+
+
+_sleep_check: Callable[[float], Awaitable[None]] = FakeSleep()
