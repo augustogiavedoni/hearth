@@ -151,3 +151,29 @@ async def test_router_fallback_on_rate_limit_without_retry_or_sleep() -> None:
     assert primary.calls == [[message]]
     assert secondary.calls == [[message]]
     assert sleep.delays == []
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        pytest.param(ProviderAuthenticationError(), id="authentication-error"),
+        pytest.param(ProviderInvalidRequestError(), id="invalid-request-error"),
+        pytest.param(ProviderError(), id="generic-error"),
+    ],
+)
+async def test_router_raises_without_fallback_on_non_transient_error(
+    exception: ProviderError,
+) -> None:
+    primary = FakeProvider([exception])
+    secondary = FakeProvider([Response(content="Hi! How can I help you?", finish_reason="stop")])
+    sleep = FakeSleep()
+    router = Router(providers=[primary, secondary], retry_config=RetryConfig(), sleep=sleep)
+    message = Message(role="user", content="Hi there!")
+
+    with pytest.raises(type(exception)) as exception_info:
+        await router.complete([message])
+
+    assert exception_info.value is exception
+    assert primary.calls == [[message]]
+    assert secondary.calls == []
+    assert sleep.delays == []
