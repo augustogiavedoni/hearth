@@ -1,9 +1,10 @@
 """Provider router.
 
 Responsibility:
-    Choose which provider serves a request and fall back to the next one
-    when a provider returns HTTP 429 (rate limit or quota exhausted), with
-    bounded retries and backoff.
+    Serve a request from the first provider that answers, in order. Fall
+    back to the next provider on HTTP 429 (rate limit or quota exhausted);
+    retry timeouts and unavailability with bounded backoff, then fall back;
+    raise any other error immediately (see ADR 0003).
 
 Must NOT:
     - Retry forever or without backoff.
@@ -27,8 +28,6 @@ from hearth.providers.base import (
     ProviderUnavailableError,
     Response,
 )
-
-# TODO(augusto): implement routing and fallback on 429
 
 
 class ProviderAction(Enum):
