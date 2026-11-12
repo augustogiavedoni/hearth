@@ -11,4 +11,32 @@ Must NOT:
     - Silently send data to a provider not present in configuration.
 """
 
-# TODO(augusto): implement routing and fallback on 429.
+from enum import Enum, auto
+
+from hearth.providers.base import (
+    ProviderAuthenticationError,
+    ProviderInvalidRequestError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    ProviderUnavailableError,
+)
+
+
+class ProviderAction(Enum):
+    RETRY_THEN_FALLBACK = auto()
+    FALLBACK = auto()
+    FAIL = auto()
+
+
+def action_for(exception: Exception) -> ProviderAction:
+    match exception:
+        case ProviderTimeoutError() | ProviderUnavailableError():
+            return ProviderAction.RETRY_THEN_FALLBACK
+        case ProviderRateLimitError():
+            return ProviderAction.FALLBACK
+        case ProviderAuthenticationError() | ProviderInvalidRequestError():
+            return ProviderAction.FAIL
+        # Fail closed: an unknown error is likely a bug; surface it instead of hiding it behind a
+        # fallback that sends the request to another provider.
+        case _:
+            return ProviderAction.FAIL
