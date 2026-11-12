@@ -212,3 +212,78 @@ async def test_router_falls_back_after_exhausting_retries(exception: ProviderErr
     assert len(primary.calls) == 4
     assert secondary.calls == [[message]]
     assert sleep.delays == [1.0, 2.0, 4.0]
+
+
+async def test_router_recovers_on_retry_without_fallback() -> None:
+    expected = Response(content="Hi! How can I help you?", finish_reason="stop")
+    primary = FakeProvider([ProviderTimeoutError(), expected])
+    secondary = FakeProvider(
+        [Response(content="Hi! What should we do today?", finish_reason="stop")]
+    )
+    sleep = FakeSleep()
+    router = Router(
+        providers=[primary, secondary], retry_config=RetryConfig(max_retries=3), sleep=sleep
+    )
+    message = Message(role="user", content="Hi there!")
+
+    result = await router.complete([message])
+
+    assert result is expected
+    assert len(primary.calls) == 2
+    assert secondary.calls == []
+    assert sleep.delays == [1.0]
+
+
+async def test_router_falls_back_on_rate_limit_during_retry() -> None:
+    primary = FakeProvider([ProviderTimeoutError(), ProviderRateLimitError()])
+    expected = Response(content="Hi! What should we do today?", finish_reason="stop")
+    secondary = FakeProvider([expected])
+    sleep = FakeSleep()
+    router = Router(
+        providers=[primary, secondary], retry_config=RetryConfig(max_retries=3), sleep=sleep
+    )
+    message = Message(role="user", content="Hi there!")
+
+    result = await router.complete([message])
+
+    assert result is expected
+    assert len(primary.calls) == 2
+    assert secondary.calls == [[message]]
+    assert sleep.delays == [1.0]
+
+
+async def test_router_raises_on_non_transient_error_during_retry() -> None:
+    primary = FakeProvider([ProviderTimeoutError(), ProviderAuthenticationError()])
+    secondary = FakeProvider(
+        [Response(content="Hi! What should we do today?", finish_reason="stop")]
+    )
+    sleep = FakeSleep()
+    router = Router(
+        providers=[primary, secondary], retry_config=RetryConfig(max_retries=3), sleep=sleep
+    )
+    message = Message(role="user", content="Hi there!")
+
+    with pytest.raises(ProviderAuthenticationError):
+        await router.complete([message])
+
+    assert len(primary.calls) == 2
+    assert secondary.calls == []
+    assert sleep.delays == [1.0]
+
+
+async def test_router_falls_back_without_retries() -> None:
+    primary = FakeProvider([ProviderTimeoutError()])
+    expected = Response(content="Hi! What should we do today?", finish_reason="stop")
+    secondary = FakeProvider([expected])
+    sleep = FakeSleep()
+    router = Router(
+        providers=[primary, secondary], retry_config=RetryConfig(max_retries=0), sleep=sleep
+    )
+    message = Message(role="user", content="Hi there!")
+
+    result = await router.complete([message])
+
+    assert result is expected
+    assert len(primary.calls) == 1
+    assert secondary.calls == [[message]]
+    assert sleep.delays == []
