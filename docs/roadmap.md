@@ -3,6 +3,10 @@
 Each milestone is done only when its acceptance criteria pass and the
 threat model has been reviewed for it.
 
+This file is the source of truth. Each milestone has a matching
+[GitHub milestone](https://github.com/augustogiavedoni/hearth/milestones),
+and the work toward each criterion is tracked as an issue in it.
+
 ## M1 — Provider + minimal CLI chat
 - [ ] `uv run python -m hearth` (or similar) starts a REPL that sends user
       input to the configured OpenAI-compatible provider and prints replies.

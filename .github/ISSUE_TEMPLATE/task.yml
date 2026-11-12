@@ -1,0 +1,41 @@
+name: Task
+description: Planned work toward a roadmap milestone.
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A task is one piece of work from [the roadmap](https://github.com/augustogiavedoni/hearth/blob/main/docs/roadmap.md).
+        Assign it to its milestone (M1–M6) and to one `area:` label.
+  - type: input
+    id: criterion
+    attributes:
+      label: Roadmap criterion
+      description: The acceptance criterion this task moves forward, as written in docs/roadmap.md.
+      placeholder: "M1: Provider settings come from env; no secrets in code."
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What and why
+      description: What changes, and why it is needed.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Checkable conditions, ideally proved by tests.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security impact
+      description: Does this touch the threat model (credentials, email content, tools, approvals)? Write "none" if not.
+    validations:
+      required: true
