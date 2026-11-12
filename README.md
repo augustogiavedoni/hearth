@@ -64,6 +64,25 @@ uv run pre-commit install
 uv run pytest
 ```
 
+## Roadmap and tracking
+
+Work is planned in six milestones, from a terminal chat (M1) to a hardened
+deployment (M6).
+
+- **[docs/roadmap.md](docs/roadmap.md)** is the source of truth: what each
+  milestone delivers and its acceptance criteria.
+- **[Milestones](https://github.com/augustogiavedoni/hearth/milestones)**
+  mirror the roadmap and show progress.
+- **[Issues](https://github.com/augustogiavedoni/hearth/issues)** track
+  concrete work: each task belongs to a milestone and has an `area:` label
+  for the part of the code it touches. Pull requests close them.
+- **[docs/decisions/](docs/decisions/)** records why things are built the
+  way they are (ADRs).
+
+This is a personal learning project, so the core code is written by hand
+and contributions are not expected. Bug reports are welcome; security
+issues must be reported privately (see above).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

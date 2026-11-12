@@ -1,0 +1,39 @@
+name: Bug report
+description: Something does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public.** Do not paste emails, tokens, API keys,
+        hostnames, IP addresses or any other personal data. Replace them with
+        placeholders. Security vulnerabilities go through a
+        [private report](https://github.com/augustogiavedoni/hearth/security/advisories/new), not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: "e.g. c0c6f5e"
+    validations:
+      required: false

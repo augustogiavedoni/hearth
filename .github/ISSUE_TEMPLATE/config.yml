@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/augustogiavedoni/hearth/security/advisories/new
+    about: Please report vulnerabilities privately, never in a public issue.
+  - name: Roadmap
+    url: https://github.com/augustogiavedoni/hearth/blob/main/docs/roadmap.md
+    about: Milestones and their acceptance criteria. Issues track the work toward them.
